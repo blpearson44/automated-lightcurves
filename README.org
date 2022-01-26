@@ -6,6 +6,7 @@
 - Numpy
 - Matplotlib
 - Astropy
+- Photometry-plus
 - Photutils
 - Django
 - Statistics
@@ -15,7 +16,7 @@ pip install numpy matplotlib astropy photutils django statistics
 #+end_src
 ** Primary files
 #+begin_src bash
-git clone https://github.com/blpearson44/senior-thesis.git
+git clone --recurse-submodules https://github.com/blpearson44/senior-thesis.git
 #+end_src
 * Photometry script
 This project will consist of two Python scripts:
