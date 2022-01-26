@@ -1,5 +1,22 @@
 #+title: Senior Thesis Program
 #+filetags: PROJECT physics thesis
+* Installation
+** Prerequisites
+- Python 3.9+
+- Numpy
+- Matplotlib
+- Astropy
+- Photutils
+- Django
+- Statistics
+*** Install prerequisites
+#+begin_src bash
+pip install numpy matplotlib astropy photutils django statistics
+#+end_src
+** Primary files
+#+begin_src bash
+git clone https://github.com/blpearson44/senior-thesis.git
+#+end_src
 * Photometry script
 This project will consist of two Python scripts:
 ** TODO Photometry Script [0/3]
