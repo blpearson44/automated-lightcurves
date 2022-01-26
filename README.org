@@ -1,0 +1,12 @@
+#+title: Senior Thesis Program
+#+filetags: PROJECT physics thesis
+* Photometry script
+This project will consist of two Python scripts:
+** TODO Photometry Script [0/3]
+- [ ] Check for new data
+- [ ] Perform photometry on a set of input stars
+- [ ] Append to data set
+** TODO Plotting Script [0/3]
+- [ ] Plot data set
+- [ ] Overwrite previous file at destination
+- [ ] Generate notification

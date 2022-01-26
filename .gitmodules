@@ -1,0 +1,3 @@
+[submodule "photometry-plus"]
+	path = photometry-plus
+	url = https://github.com/Alexandara/photometry-plus.git
