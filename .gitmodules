@@ -1,0 +1,3 @@
+[submodule "photometryplus"]
+	path = photometryplus
+	url = git@github.com:blpearson44/photometry-plus.git
