@@ -20,9 +20,9 @@ git clone --recurse-submodules https://github.com/blpearson44/senior-thesis.git
 #+end_src
 * Photometry script
 This project will consist of two Python scripts:
-** TODO Photometry Script [0/3]
+** TODO Photometry Script [1/3]
 - [ ] Check for new data
-- [ ] Perform photometry on a set of input stars
+- [X] Perform photometry on a set of input stars
 - [ ] Append to data set
 ** TODO Plotting Script [0/3]
 - [ ] Plot data set
