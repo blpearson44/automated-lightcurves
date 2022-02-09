@@ -38,7 +38,7 @@ def find_dark(input_file: str) -> str:
     input_date = 0
     input_exposure = 0
     with fits.open(input_file) as hdul:
-        input_date = hdul[0].header["DATE"]
+        input_date = hdul[0].header["JD"]  # TODO cal type
         input_exposure = hdul[0].header["EXPOSURE"]
 
     return dark
@@ -62,6 +62,11 @@ def find_flat(input_file: str) -> str:
     return flat
 
 
+# TODO Manually input size of pixels
+# TODO Manually input reference stars
+# TODO Option for pre-calibrated files
+
+
 @app.command()
 def run_photometry(
     star_ra: float,
@@ -79,12 +84,13 @@ def run_photometry(
         find_flat(input_file)
     output = pho.runPhotometry(star_ra, star_dec, input_file, dark, "", flat)
     pho.printReferenceToFile(
-        output.referenceStars, "./reference-stars/" + str(date.today()) + ".csv"
+        output.referenceStars, "./reference-stars/" +
+        str(date.today()) + ".csv"
     )
     if save:
         date_taken = ""
         with fits.open(input_file) as hdul:
-            date_taken = hdul[0].header["DATE"]
+            date_taken = hdul[0].header["JD"]
         df = pd.DataFrame(
             {
                 "Date Added": [date.today()],
