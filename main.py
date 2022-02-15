@@ -121,13 +121,19 @@ app = typer.Typer()
 
 @app.command()
 def run_photometry(
-    star_ra: float,
-    star_dec: float,
-    input_file: str,
-    dark: str = None,
-    flat: str = None,
+    star_ra: float = typer.Argument(
+        ..., help="The right ascension of the target star."
+    ),
+    star_dec: float = typer.Argument(..., help="The declination of the target star."),
+    input_file: str = typer.Argument(
+        ..., help="The fits file containing the raw data."
+    ),
+    dark: str = typer.Argument(None, help="The fits file containing the dark frame."),
+    flat: str = typer.Argument(None, help="The fits file containing the flat field."),
     save: bool = False,
-    output_file: str = "./Output/output.csv",
+    output_file: str = typer.Argument(
+        "./Output/output.csv", help="Where to save the data."
+    ),
 ) -> None:
     """
     Run photometry on target star.
@@ -167,20 +173,42 @@ def run_photometry(
             df.to_csv(output_file, mode="w", index=False, header=True)
 
 
-pho.changeSettings(useBiasFlag=0, consolePrintFlag=0)
+@app.command()
+def run_photometry_bulk(
+    star_ra: float = typer.Argument(
+        ..., help="The right ascension of the target star."
+    ),
+    star_dec: float = typer.Argument(..., help="The declination of the target star."),
+    input_dir: str = typer.Argument(
+        ..., help="The parent directory containing the raw data."
+    ),
+) -> None:
+    """Run photometry on a directory."""
+    for input_file in os.listdir(input_dir):
+        if input_file.endswith(".fits") or input_file.endswith(".fts"):
+            full_path = input_dir + input_file
+            run_photometry(star_ra, star_dec, full_path, save=True)
 
 
 @app.command()
 def plot_lightcurve(
-    input_file: str = "./Output/output.csv", output_file: str = "./Output/plot.png"
+    input_file: str = "./Output/output.csv",
+    output_file: str = "./Output/plot.png",
+    title: str = "Light Curve",
 ) -> None:
     """Plot lightcurve using JD dates, magnitude, and errors."""
     df = pd.read_csv(input_file)
     plt.scatter(df["Date Taken"], df["Magnitude"])
+    ax = plt.gca()
+    ax.invert_yaxis()
+    ax.set_xlabel("Date Taken")
+    ax.set_ylabel("Magnitude")
     plt.errorbar(df["Date Taken"], df["Magnitude"], yerr=df["Error"], fmt="o")
+    plt.title(title, fontsize=15, fontweight="bold")
     plt.savefig(output_file)
     return
 
 
 if __name__ == "__main__":
+    pho.changeSettings(useBiasFlag=0, consolePrintFlag=0)
     app()
