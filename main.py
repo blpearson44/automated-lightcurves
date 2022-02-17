@@ -19,6 +19,8 @@ class NoFileFoundError(Exception):
 
 CALIBRATION_PATH = "/Users/ben/Projects/Senior-Thesis/calibrations/"
 
+app = typer.Typer()
+
 
 def is_non_zero_file(path: str) -> bool:
     """Returns false if file is empty or does not exist, true otherwise."""
@@ -116,24 +118,31 @@ def find_flat(input_file: str) -> str:
 # TODO Manually input reference stars
 # TODO Option for pre-calibrated files
 
-app = typer.Typer()
+
+@app.command()
+def index_dir(path: str) -> None:
+    """Index the fits files in a directory."""
+    index = {"JD": [], "IMAGETYP": [], "EXPOSURE": []}
+    for fits_file in os.scandir(path):
+        if fits_file.path.endswith(".fits") or fits_file.path.endswith(".fts"):
+            with fits.open(fits_file.path) as hdul:
+                index["JD"].append(hdul[0].header["JD"])
+                index["IMAGETYP"].append(hdul[0].header["IMAGETYP"])
+                index["EXPOSURE"].append(hdul[0].header["EXPOSURE"])
+    df = pd.DataFrame(index)
+    df.to_csv(path + "index.csv", mode="w", index=False, header=True)
 
 
 @app.command()
 def run_photometry(
-    star_ra: float = typer.Argument(
-        ..., help="The right ascension of the target star."
-    ),
-    star_dec: float = typer.Argument(..., help="The declination of the target star."),
-    input_file: str = typer.Argument(
-        ..., help="The fits file containing the raw data."
-    ),
-    dark: str = typer.Argument(None, help="The fits file containing the dark frame."),
-    flat: str = typer.Argument(None, help="The fits file containing the flat field."),
+    star_ra: float,
+    star_dec: float,
+    input_file: str,
+    dark: str = None,
+    flat: str = None,
     save: bool = False,
-    output_file: str = typer.Argument(
-        "./Output/output.csv", help="Where to save the data."
-    ),
+    output_file: str = "./Output/output.csv",
+    calibrate: bool = False,
 ) -> None:
     """
     Run photometry on target star.
@@ -151,14 +160,19 @@ def run_photometry(
             print("No flat file found.")
             return
 
-    output = pho.runPhotometry(star_ra, star_dec, input_file, dark, "", flat)
-    date_taken = ""
-    with fits.open(input_file) as hdul:
-        date_taken = hdul[0].header["JD"]
+    try:
+        output = pho.runPhotometry(star_ra, star_dec, input_file, dark, "", flat)
+        date_taken = ""
+        with fits.open(input_file) as hdul:
+            date_taken = hdul[0].header["JD"]
+        pho.printReferenceToFile(
+            output.referenceStars,
+            "./reference-stars/" + str(round(date_taken)) + ".csv",
+        )
+    except AttributeError:
+        print(f"File {input_file} failed.")
+        return
 
-    pho.printReferenceToFile(
-        output.referenceStars, "./reference-stars/" + str(round(date_taken)) + ".csv"
-    )
     if save:
         df = pd.DataFrame(
             {
@@ -175,13 +189,9 @@ def run_photometry(
 
 @app.command()
 def run_photometry_bulk(
-    star_ra: float = typer.Argument(
-        ..., help="The right ascension of the target star."
-    ),
-    star_dec: float = typer.Argument(..., help="The declination of the target star."),
-    input_dir: str = typer.Argument(
-        ..., help="The parent directory containing the raw data."
-    ),
+    star_ra: float,
+    star_dec: float,
+    input_dir: str,
 ) -> None:
     """Run photometry on a directory."""
     for input_file in os.listdir(input_dir):
@@ -206,9 +216,13 @@ def plot_lightcurve(
     plt.errorbar(df["Date Taken"], df["Magnitude"], yerr=df["Error"], fmt="o")
     plt.title(title, fontsize=15, fontweight="bold")
     plt.savefig(output_file)
-    return
 
 
 if __name__ == "__main__":
-    pho.changeSettings(useBiasFlag=0, consolePrintFlag=0)
+    pho.changeSettings(
+        useBiasFlag=0,
+        consolePrintFlag=1,
+        astrometryDotNetFlag="flyzmcwhrujaqwai",
+        astrometryTimeOutFlag=100,
+    )
     app()
