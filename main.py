@@ -14,8 +14,6 @@ import photometryplus.photometry as pho
 class NoFileFoundError(Exception):
     """Throw this error when a file cannot be found."""
 
-    pass
-
 
 CALIBRATION_PATH = "/Users/ben/Projects/Senior-Thesis/calibrations/"
 
@@ -25,6 +23,11 @@ app = typer.Typer()
 def is_non_zero_file(path: str) -> bool:
     """Returns false if file is empty or does not exist, true otherwise."""
     return os.path.isfile(path) and os.path.getsize(path) > 0
+
+
+def closest(num: float, sample: list) -> float:
+    """Find closest value in a list."""
+    return min(range(len(sample)), key=lambda i: abs(sample[i] - num))
 
 
 def find_dark(input_file: str) -> str:
@@ -46,29 +49,17 @@ def find_dark(input_file: str) -> str:
     dark_exposure = 0
     input_date = 0
     input_exposure = 0
+    try:
+        df = pd.read_csv(path + "index.csv")
+    except FileNotFoundError:
+        print("No index file found, generating...")
+        index_dir(path)
+        df = pd.read_csv(path + "index.csv")
     with fits.open(input_file) as hdul:
-        # input_date = hdul[0].header["JD"]  # TODO check allowed tolerances with date
-        #
+        input_date = hdul[0].header["JD"]
         input_exposure = hdul[0].header["EXPOSURE"]
 
-    for dark_file in os.listdir(path):
-        if dark_file.endswith(".fits") or dark_file.endswith(".fts"):
-            full_path = path + dark_file
-            with fits.open(full_path) as hdul:
-                # dark_date = hdul[0].header["JD"]
-                dark_exposure = hdul[0].header["EXPOSURE"]
-                if (
-                    hdul[0].header["IMAGETYP"] == "Dark Frame"
-                    # and math.isclose(dark_date, input_date, abs_tol=20)
-                    and math.isclose(
-                        dark_exposure, input_exposure, abs_tol=20
-                    )  # TODO check allowed tolerances with exposure time
-                ):
-                    return full_path
-        else:
-            pass
-
-    raise NoFileFoundError("No dark file found.")
+    return df["FILEPATH"][closest(input_date, df["JD"])]
 
 
 def find_flat(input_file: str) -> str:
@@ -117,20 +108,36 @@ def find_flat(input_file: str) -> str:
 # TODO Manually input size of aperture
 # TODO Manually input reference stars
 # TODO Option for pre-calibrated files
+# TODO Secondary date axis
+# TODO Use error bars to determine if data points should be kept
 
 
 @app.command()
 def index_dir(path: str) -> None:
     """Index the fits files in a directory."""
-    index = {"JD": [], "IMAGETYP": [], "EXPOSURE": []}
+    index = {
+        "JD": [],
+        "IMAGETYP": [],
+        "EXPOSURE": [],
+        "FILEPATH": [],
+        "WCS": [],
+        "FILTER": [],
+    }
     for fits_file in os.scandir(path):
         if fits_file.path.endswith(".fits") or fits_file.path.endswith(".fts"):
             with fits.open(fits_file.path) as hdul:
                 index["JD"].append(hdul[0].header["JD"])
                 index["IMAGETYP"].append(hdul[0].header["IMAGETYP"])
                 index["EXPOSURE"].append(hdul[0].header["EXPOSURE"])
+                index["WCS"].append("CD1_1" in hdul[0].header)
+                if "FILTER" in hdul[0].header:
+                    index["FILTER"].append(hdul[0].header["FILTER"])
+                else:
+                    index["FILTER"].append("None")
+
+            index["FILEPATH"].append(fits_file.path)
     df = pd.DataFrame(index)
-    df.to_csv(path + "index.csv", mode="w", index=False, header=True)
+    df.to_csv(path + "index.csv", mode="w", index=True, header=True)
 
 
 @app.command()
@@ -147,6 +154,7 @@ def run_photometry(
     """
     Run photometry on target star.
     """
+    # Find calibration files if none are provided
     if dark is None:
         try:
             dark = find_dark(input_file)
@@ -182,9 +190,9 @@ def run_photometry(
             }
         )
         if is_non_zero_file(output_file):
-            df.to_csv(output_file, mode="a", index=False, header=False)
+            df.to_csv(output_file, mode="a", index=True, header=False)
         else:
-            df.to_csv(output_file, mode="w", index=False, header=True)
+            df.to_csv(output_file, mode="w", index=True, header=True)
 
 
 @app.command()
@@ -208,6 +216,9 @@ def plot_lightcurve(
 ) -> None:
     """Plot lightcurve using JD dates, magnitude, and errors."""
     df = pd.read_csv(input_file)
+    for i in range(len(df["Error"])):
+        if abs(df["Error"][i]) > 0.1:
+            df = df.drop(i)
     plt.scatter(df["Date Taken"], df["Magnitude"])
     ax = plt.gca()
     ax.invert_yaxis()
