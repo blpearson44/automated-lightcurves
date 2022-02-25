@@ -45,10 +45,6 @@ def find_dark(input_file: str) -> str:
             └──flats fits data
     """
     path = CALIBRATION_PATH + "darks/"  # default path
-    dark_date = 0
-    dark_exposure = 0
-    input_date = 0
-    input_exposure = 0
     try:
         df = pd.read_csv(path + "index.csv")
     except FileNotFoundError:
@@ -58,6 +54,10 @@ def find_dark(input_file: str) -> str:
     with fits.open(input_file) as hdul:
         input_date = hdul[0].header["JD"]
         input_exposure = hdul[0].header["EXPOSURE"]
+
+    for i in range(len(df["EXPOSURE"])):
+        if not math.isclose(input_exposure, df["EXPOSURE"][i], rel_tol=0.05):
+            df = df.drop(i)
 
     return df["FILEPATH"][closest(input_date, df["JD"])]
 
@@ -77,32 +77,21 @@ def find_flat(input_file: str) -> str:
             └──flats fits data
     """
     path = CALIBRATION_PATH + "flats/"  # default path
-    flat_date = 0
-    flat_exposure = 0
-    input_date = 0
-    input_exposure = 0
+    try:
+        df = pd.read_csv(path + "index.csv")
+    except FileNotFoundError:
+        print("No index file found, generating...")
+        index_dir(path)
+        df = pd.read_csv(path + "index.csv")
     with fits.open(input_file) as hdul:
         input_date = hdul[0].header["JD"]
-        # TODO Check filter type
-        # input_exposure = hdul[0].header["EXPOSURE"]
+        input_filter = hdul[0].header["FILTER"]
 
-    for flat_file in os.listdir(path):
-        if flat_file.endswith(".fits") or flat_file.endswith(".fts"):
-            full_path = path + flat_file
-            with fits.open(full_path) as hdul:
-                # flat_date = hdul[0].header["JD"]
-                flat_exposure = hdul[0].header["EXPOSURE"]
-                if (
-                    hdul[0].header["IMAGETYP"]
-                    == "Flat Field"
-                    # and math.isclose(flat_date, input_date, abs_tol=20)  # TODO check allowed tolerances on date for flat field
-                    # and math.isclose(flat_exposure, input_exposure, abs_tol=20)  # TODO double check that exposure is not needed
-                ):
-                    return full_path
-        else:
-            pass
+    for i in range(len(df["FILTER"])):
+        if df["FILTER"][i] != input_filter:
+            df = df.drop(i)
 
-    raise NoFileFoundError("No flat file found.")
+    return df["FILEPATH"][closest(input_date, df["JD"])]
 
 
 # TODO Manually input size of aperture
