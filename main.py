@@ -179,9 +179,9 @@ def run_photometry(
             }
         )
         if is_non_zero_file(output_file):
-            df.to_csv(output_file, mode="a", index=True, header=False)
-        else:
-            df.to_csv(output_file, mode="w", index=True, header=True)
+            df2 = pd.read_csv(output_file, index_col=0)
+            df = df2.append(df, ignore_index=True)
+        df.to_csv(output_file, mode="w", index=True, header=True)
 
 
 @app.command()
