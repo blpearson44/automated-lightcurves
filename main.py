@@ -1,4 +1,7 @@
 """Run photometry on target stars as a command line utility."""
+# TODO Manually input size of aperture
+# TODO Manually input reference stars
+# TODO Option for pre-calibrated files
 
 # Imports
 import typer
@@ -52,14 +55,14 @@ def find_dark(input_file: str) -> str:
         index_dir(path)
         df = pd.read_csv(path + "index.csv")
     with fits.open(input_file) as hdul:
-        input_date = hdul[0].header["JD"]
+        input_date = hdul[0].header["JD"] - 2400000.5
         input_exposure = hdul[0].header["EXPOSURE"]
 
     for i in range(len(df["EXPOSURE"])):
         if not math.isclose(input_exposure, df["EXPOSURE"][i], rel_tol=0.05):
             df = df.drop(i)
 
-    return df["FILEPATH"][closest(input_date, df["JD"])]
+    return df["FILEPATH"][closest(input_date, df["MJD"])]
 
 
 def find_flat(input_file: str) -> str:
@@ -84,25 +87,22 @@ def find_flat(input_file: str) -> str:
         index_dir(path)
         df = pd.read_csv(path + "index.csv")
     with fits.open(input_file) as hdul:
-        input_date = hdul[0].header["JD"]
+        input_date = hdul[0].header["JD"] - 2400000.5
         input_filter = hdul[0].header["FILTER"]
 
     for i in range(len(df["FILTER"])):
         if df["FILTER"][i] != input_filter:
             df = df.drop(i)
 
-    return df["FILEPATH"][closest(input_date, df["JD"])]
+    return df["FILEPATH"][closest(input_date, df["MJD"])]
 
 
-# TODO Manually input size of aperture
-# TODO Manually input reference stars
-# TODO Option for pre-calibrated files
-
-
+# TODO column for ran files
 @app.command()
-def index_dir(path: str) -> None:
+def index_dir(path: str, clean_run: bool = False) -> None:
     """
     Index the fits files in a directory.
+    Flags: clean-run, generates new index file from scratch
     Gathers:
     MJD
     ImageType (Light, Dark Frame, Flat Field)
@@ -110,6 +110,7 @@ def index_dir(path: str) -> None:
     File Path
     Presence of WCS (True/False)
     Filter type
+    Whether or not file has already been run
     """
     index = {
         "MJD": [],
@@ -118,11 +119,27 @@ def index_dir(path: str) -> None:
         "FILEPATH": [],
         "WCS": [],
         "FILTER": [],
+        "RAN": [],
     }
+    index_file = f"{path}/index.csv"
+    index_info = {}
+    if is_non_zero_file(index_file) and not clean_run:
+        index_info = pd.read_csv(index_file)
+        index_files = []
+        for fits_file in index_info["FILEPATH"]:
+            index_files.append(
+                f"{fits_file}"
+            )  # this really shouldn't be necessary but the filepath doesn't match up unless I make a new list
     for fits_file in os.scandir(path):
         if fits_file.path.endswith(".fits") or fits_file.path.endswith(".fts"):
+            if not clean_run:
+                if fits_file.path in index_files:
+                    print(f"Skipping {fits_file.path}")
+                    pass
+                else:
+                    print(f"File {fits_file.path} not found in index, generating...")
             with fits.open(fits_file.path) as hdul:
-                index["MJD"].append(hdul[0].header["JD"]) - 2400000.5
+                index["MJD"].append(hdul[0].header["JD"] - 2400000.5)
                 index["IMAGETYP"].append(hdul[0].header["IMAGETYP"])
                 index["EXPOSURE"].append(hdul[0].header["EXPOSURE"])
                 index["WCS"].append("CD1_1" in hdul[0].header)
@@ -132,10 +149,12 @@ def index_dir(path: str) -> None:
                     index["FILTER"].append("None")
 
             index["FILEPATH"].append(fits_file.path)
+            index["RAN"].append(False)
     df = pd.DataFrame(index)
     df.to_csv(path + "index.csv", mode="w", index=True, header=True)
 
 
+# TODO make it append whether or not it has been run to the index file
 @app.command()
 def run_photometry(
     star_ra: float,
@@ -192,8 +211,26 @@ def run_photometry(
             df2 = pd.read_csv(output_file, index_col=0)
             df = df2.append(df, ignore_index=True)
         df.to_csv(output_file, mode="w", index=True, header=True)
+        # tell index file that this file has been run
+        index_file = f"{os.path.dirname(input_file)}/index.csv"
+        if is_non_zero_file(index_file):
+            df = pd.read_csv(index_file)
+            for i in range(df["FILEPATH"].size):
+                # print(os.path.abspath(input_file))
+                # print(f'./{df["FILEPATH"][i]}')
+                if os.path.abspath(input_file) == os.path.abspath(
+                    f'./{df["FILEPATH"][i]}'
+                ):
+                    print("Found path!")
+                    df.at[i, "RAN"] = True
+                    df.to_csv(index_file, mode="w", index=True, header=True)
+                    return
+            print("File not found in index.")
+        else:
+            print("No index file found.")
 
 
+# TODO make flag for running on non-wcs or on wcs and whether or not to rerun already done files
 @app.command()
 def run_photometry_bulk(
     star_ra: float,
@@ -222,6 +259,7 @@ def dttomjd(dttime):
     return dttime
 
 
+# TODO make most recent data point appear red
 @app.command()
 def plot_lightcurve(
     input_file: str = "./Output/output.csv",
