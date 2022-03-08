@@ -214,7 +214,7 @@ def run_photometry(
         # tell index file that this file has been run
         index_file = f"{os.path.dirname(input_file)}/index.csv"
         if is_non_zero_file(index_file):
-            df = pd.read_csv(index_file)
+            df = pd.read_csv(index_file, index_col=0)
             for i in range(df["FILEPATH"].size):
                 # print(os.path.abspath(input_file))
                 # print(f'./{df["FILEPATH"][i]}')
@@ -233,9 +233,7 @@ def run_photometry(
 # TODO make flag for running on non-wcs or on wcs and whether or not to rerun already done files
 @app.command()
 def run_photometry_bulk(
-    star_ra: float,
-    star_dec: float,
-    input_dir: str,
+    star_ra: float, star_dec: float, input_dir: str, run_on_wcs: bool = False
 ) -> None:
     """
     Run photometry on a directory. Automatically sources calibration files assuming they will be found in
@@ -245,6 +243,8 @@ def run_photometry_bulk(
     """
     for input_file in os.listdir(input_dir):
         if input_file.endswith(".fits") or input_file.endswith(".fts"):
+            if not run_on_wcs:
+                index_file = pd.read_csv()
             full_path = input_dir + input_file
             run_photometry(star_ra, star_dec, full_path, save=True)
 
