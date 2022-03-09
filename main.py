@@ -4,14 +4,18 @@
 # TODO Option for pre-calibrated files
 
 # Imports
-import typer
-import math
 import os
+import math
+import typer
+import warnings
 import pandas as pd
 from datetime import date
 from astropy.io import fits
+from astropy.wcs import FITSFixedWarning
 import matplotlib.pyplot as plt
 import photometryplus.photometry as pho
+
+warnings.filterwarnings("ignore", category=FITSFixedWarning, append=True)
 
 
 class NoFileFoundError(Exception):
@@ -97,7 +101,6 @@ def find_flat(input_file: str) -> str:
     return df["FILEPATH"][closest(input_date, df["MJD"])]
 
 
-# TODO column for ran files
 @app.command()
 def index_dir(path: str, clean_run: bool = False) -> None:
     """
@@ -154,7 +157,6 @@ def index_dir(path: str, clean_run: bool = False) -> None:
     df.to_csv(path + "index.csv", mode="w", index=True, header=True)
 
 
-# TODO make it append whether or not it has been run to the index file
 @app.command()
 def run_photometry(
     star_ra: float,
@@ -176,12 +178,14 @@ def run_photometry(
     if dark is None:
         try:
             dark = find_dark(input_file)
+            print(f"Closest dark file is {dark}")
         except NoFileFoundError:
             print("No dark file found.")
             return
     if flat is None:
         try:
             flat = find_flat(input_file)
+            print(f"Closest flat file is {flat}")
         except NoFileFoundError:
             print("No flat file found.")
             return
@@ -200,7 +204,7 @@ def run_photometry(
         return
 
     if save:
-        df = pd.DataFrame(
+        data_out = pd.DataFrame(
             {
                 "MJD": [date_taken - 2400000.5],
                 "Magnitude": [output.magnitude],
@@ -208,29 +212,32 @@ def run_photometry(
             }
         )
         if is_non_zero_file(output_file):
-            df2 = pd.read_csv(output_file, index_col=0)
-            df = df2.append(df, ignore_index=True)
-        df.to_csv(output_file, mode="w", index=True, header=True)
+            data_out2 = pd.read_csv(output_file, index_col=0)
+            data_out = data_out2.append(data_out, ignore_index=True)
+        data_out.to_csv(output_file, mode="w", index=True, header=True)
         # tell index file that this file has been run
         index_file = f"{os.path.dirname(input_file)}/index.csv"
         if is_non_zero_file(index_file):
-            df = pd.read_csv(index_file, index_col=0)
-            for i in range(df["FILEPATH"].size):
-                # print(os.path.abspath(input_file))
-                # print(f'./{df["FILEPATH"][i]}')
-                if os.path.abspath(input_file) == os.path.abspath(
-                    f'./{df["FILEPATH"][i]}'
-                ):
-                    print("Found path!")
-                    df.at[i, "RAN"] = True
-                    df.to_csv(index_file, mode="w", index=True, header=True)
-                    return
-            print("File not found in index.")
+            index_df = find_in_csv(index_file, input_file, "RAN", True)
+            index_df.to_csv(index_file, mode="w", index=True, header=True)
         else:
             print("No index file found.")
 
 
-# TODO make flag for running on non-wcs or on wcs and whether or not to rerun already done files
+def find_in_csv(index_file: str, path: str, column: str, cell_value=None):
+    """Find a file from it's path in a csv, make a change to it and return dataframe or don't make a change and return value at collumn."""
+    df = pd.read_csv(index_file, index_col=0)
+    for i in range(df["FILEPATH"].size):
+        if os.path.abspath(path) == os.path.abspath(f'./{df["FILEPATH"][i]}'):
+            if cell_value is None:
+                return df[column][i]
+            else:
+                df.at[i, column] = cell_value
+                return df
+    raise NoFileFoundError(f"Filepath {path} not found in index csv {index_file}.")
+
+
+# TODO flag for whether or not to rerun files?
 @app.command()
 def run_photometry_bulk(
     star_ra: float, star_dec: float, input_dir: str, run_on_wcs: bool = False
@@ -241,12 +248,25 @@ def run_photometry_bulk(
     CALIBRATION_PATH/flats/flat_fits_data
     CALIBRATION_PATH is set in main.py and defaults to ./calibrations/
     """
+    index_file = f"./{input_dir}index.csv"
+    if not is_non_zero_file(index_file) and not run_on_wcs:
+        print("No index file found, generating...")
+        index_dir(input_dir, clean_run=True)
+        print(f"Success! Beginning photometry on {input_dir}")
     for input_file in os.listdir(input_dir):
+        full_path = input_dir + input_file
         if input_file.endswith(".fits") or input_file.endswith(".fts"):
-            if not run_on_wcs:
-                index_file = pd.read_csv()
-            full_path = input_dir + input_file
-            run_photometry(star_ra, star_dec, full_path, save=True)
+            try:
+                wcs = find_in_csv(index_file, full_path, "WCS")
+            except NoFileFoundError:
+                print(f"{input_file} not found in index")
+                continue
+            if run_on_wcs or wcs:
+                print(f"Performing photometry on {input_file}...")
+                run_photometry(star_ra, star_dec, full_path, save=True)
+                print("Success!")
+            else:
+                print(f"No WCS data for {input_file}, skipping.")
 
 
 # conversion from MJD to date
@@ -259,7 +279,6 @@ def dttomjd(dttime):
     return dttime
 
 
-# TODO make most recent data point appear red
 @app.command()
 def plot_lightcurve(
     input_file: str = "./Output/output.csv",
@@ -273,16 +292,35 @@ def plot_lightcurve(
     for i in range(len(df["Error"])):
         if abs(df["Error"][i]) > 0.1:
             df = df.drop(i)
+    data = df.to_dict("list")
     f = plt.figure()
     f.set_figwidth(25)
     f.set_figheight(5)
-    plt.scatter(df["MJD"], df["Magnitude"])
     ax = plt.gca()
     ax.invert_yaxis()
+    final_index = data["MJD"].index(max(data["MJD"]))
+    final_mjd, final_mag, final_error = (
+        data["MJD"].pop(final_index),
+        data["Magnitude"].pop(final_index),
+        data["Error"].pop(final_index),
+    )
     ax.set_xlabel("MJD")
     ax.set_ylabel("Magnitude")
     ax.secondary_xaxis("top", functions=(mjdtodt, dttomjd))
-    plt.errorbar(df["MJD"], df["Magnitude"], yerr=df["Error"], fmt="o")
+    plt.errorbar(
+        data["MJD"],
+        data["Magnitude"],
+        yerr=data["Error"],
+        fmt="o",
+        color="red",
+    )
+    plt.errorbar(
+        final_mjd,
+        final_mag,
+        yerr=final_error,
+        fmt="o",
+        color="blue",
+    )
     plt.title(title, fontsize=15, fontweight="bold")
     plt.tight_layout()
     plt.savefig(output_file)
@@ -291,7 +329,7 @@ def plot_lightcurve(
 if __name__ == "__main__":
     pho.changeSettings(
         useBiasFlag=0,
-        consolePrintFlag=1,
+        consolePrintFlag=0,
         astrometryDotNetFlag="flyzmcwhrujaqwai",
         astrometryTimeOutFlag=100,
     )
