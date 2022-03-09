@@ -312,14 +312,14 @@ def plot_lightcurve(
         data["Magnitude"],
         yerr=data["Error"],
         fmt="o",
-        color="red",
+        color="blue",
     )
     plt.errorbar(
         final_mjd,
         final_mag,
         yerr=final_error,
         fmt="o",
-        color="blue",
+        color="red",
     )
     plt.title(title, fontsize=15, fontweight="bold")
     plt.tight_layout()
