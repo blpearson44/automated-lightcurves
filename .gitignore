@@ -7,3 +7,4 @@ RX_J2133.7+5107 (V)/
 /test.fts
 .vscode/
 /flycheck_main.py
+/__pycache__/
