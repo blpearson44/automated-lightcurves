@@ -7,10 +7,10 @@
 import os
 import math
 import logging
-import typer
 import warnings
-import pandas as pd
 from datetime import date
+import typer
+import pandas as pd
 from astropy.io import fits
 from astropy.wcs import FITSFixedWarning
 import matplotlib.pyplot as plt
@@ -147,11 +147,11 @@ def index_dir(path: str, clean_run: bool = False) -> None:
         if fits_file.path.endswith(".fits") or fits_file.path.endswith(".fts"):
             if not clean_run:
                 if fits_file.path in index_files:
-                    logging.info(f"Skipping {fits_file.path}")
+                    logging.info("Skipping %s", fits_file.path)
                     pass
                 else:
                     logging.info(
-                        f"File {fits_file.path} not found in index, generating..."
+                        "File %s not found in index, generating...", fits_file.path
                     )
             with fits.open(fits_file.path) as hdul:
                 index["MJD"].append(hdul[0].header["JD"] - 2400000.5)
@@ -202,21 +202,22 @@ def run_photometry(
     if dark is None:
         try:
             dark = find_dark(input_file)
-            logging.info(f"Closest dark file is {dark}")
+            logging.info("Closest dark file is %s", dark)
         except NoFileFoundError:
             logging.error("No dark file found.")
             return
     if flat is None:
         try:
             flat = find_flat(input_file)
-            logging.info(f"Closest flat file is {flat}")
+            logging.info("Closest flat file is %s", flat)
         except NoFileFoundError:
             logging.error("No flat file found.")
             return
 
     if not find_in_csv(index_file, input_file, "WCS"):
         logging.info(
-            f"Need to generate WCS data for {input_file}, this may take a few minutes..."
+            "Need to generate WCS data for %s, this may take a few minutes...",
+            input_file,
         )
     try:
         output = pho.runPhotometry(star_ra, star_dec, input_file, dark, "", flat)
@@ -229,7 +230,8 @@ def run_photometry(
         )
     except AttributeError:
         logging.error(
-            f"AttributeError: File {input_file} failed (usually because reference stars could not be found)."
+            "AttributeError: File %s failed (usually because reference stars could not be found).",
+            input_file,
         )
         return
 
@@ -285,24 +287,24 @@ def run_photometry_bulk(
     if not is_non_zero_file(index_file) and not run_on_wcs:
         logging.info("No index file found, generating...")
         index_dir(input_dir, clean_run=True)
-        logging.info(f"Success! Beginning photometry on {input_dir}")
+        logging.info("Success! Beginning photometry on %s", input_dir)
     for input_file in os.listdir(input_dir):
         full_path = input_dir + input_file
         if input_file.endswith(".fits") or input_file.endswith(".fts"):
             try:
                 wcs = find_in_csv(index_file, full_path, "WCS")
             except NoFileFoundError:
-                logging.info(f"{input_file} not found in index")
+                logging.info("%s not found in index", input_file)
                 continue
             if run_on_wcs or wcs:
                 if run_all or not find_in_csv(index_file, full_path, "RAN"):
-                    logging.info(f"Performing photometry on {input_file}...")
+                    logging.info("Performing photometry on %s...", input_file)
                     run_photometry(star_ra, star_dec, full_path, save=True)
                     logging.info("Success!")
                 else:
-                    logging.info(f"File {input_file} already ran previously, skipping")
+                    logging.info("File %s already ran previously, skipping", input_file)
             else:
-                logging.info(f"No WCS data for {input_file}, skipping.")
+                logging.info("No WCS data for %s, skipping.", input_file)
 
 
 # conversion from MJD to date

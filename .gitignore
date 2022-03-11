@@ -8,3 +8,4 @@ RX_J2133.7+5107 (V)/
 .vscode/
 /flycheck_main.py
 /__pycache__/
+/logs/
