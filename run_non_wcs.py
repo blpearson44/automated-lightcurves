@@ -39,9 +39,9 @@ if __name__ == "__main__":
                         ra_list[i], dec_list[i], data["FILEPATH"][j], save=True
                     )
                 except NoConvergence:
-                    logging.error("Convergence issue with astropy.")
+                    logging.error("Convergence issue with astropy.\n")
                 except:
-                    logging.error("Encountered an unknown error.")
+                    logging.error("Encountered an unknown error.\n")
                 else:
                     logging.info("Finished photometry for %s!\n", data["FILEPATH"][j])
 
