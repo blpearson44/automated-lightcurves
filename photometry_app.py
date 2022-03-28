@@ -31,7 +31,7 @@ class NoFileFoundError(Exception):
     """Throw this error when a file cannot be found."""
 
 
-CALIBRATION_PATH = "./calibrations/"
+CALIBRATION_PATH = "/datadrive/gbo/rawdata/calibrations/"
 OUTPUT_DIR = "./Output/"
 
 app = typer.Typer()
@@ -61,12 +61,12 @@ def find_dark(input_file: str) -> str:
         └──flats/
             └──flats fits data
     """
-    path = CALIBRATION_PATH + "darks/"  # default path
+    path = CALIBRATION_PATH + "Dark/"  # default path
     try:
         df = pd.read_csv(path + "index.csv")
     except FileNotFoundError:
         logging.info("No index file found, generating...")
-        index_dir(path)
+        index_dir(path, clean_run=True)
         df = pd.read_csv(path + "index.csv")
     with fits.open(input_file) as hdul:
         input_date = hdul[0].header["JD"] - 2400000.5
@@ -76,7 +76,8 @@ def find_dark(input_file: str) -> str:
         if not math.isclose(input_exposure, df["EXPOSURE"][i], rel_tol=0.05):
             df = df.drop(i)
 
-    return df["FILEPATH"][closest(input_date, df["MJD"])]
+    index_data = df.to_dict('list')
+    return index_data["FILEPATH"][closest(input_date, index_data["MJD"])]
 
 
 def find_flat(input_file: str) -> str:
@@ -93,12 +94,12 @@ def find_flat(input_file: str) -> str:
         └──flats/
             └──flats fits data
     """
-    path = CALIBRATION_PATH + "flats/"  # default path
+    path = CALIBRATION_PATH + "Flat/"  # default path
     try:
         df = pd.read_csv(path + "index.csv")
     except FileNotFoundError:
         logging.info("No index file found, generating...")
-        index_dir(path)
+        index_dir(path, clean_run=True)
         df = pd.read_csv(path + "index.csv")
     with fits.open(input_file) as hdul:
         input_date = hdul[0].header["JD"] - 2400000.5
@@ -108,7 +109,8 @@ def find_flat(input_file: str) -> str:
         if df["FILTER"][i] != input_filter:
             df = df.drop(i)
 
-    return df["FILEPATH"][closest(input_date, df["MJD"])]
+    index_data = df.to_dict('list')
+    return index_data["FILEPATH"][closest(input_date, index_data["MJD"])]
 
 
 @app.command()
@@ -189,7 +191,7 @@ def run_photometry(
     # Find calibration files if none are provided
     index_file = f"{os.path.dirname(input_file)}/index.csv"
     if not is_non_zero_file(index_file):
-        index_dir(os.path.dirname(input_file))
+        index_dir(os.path.dirname(input_file), clean_run=True)
     if output_file is None:
         try:
             with fits.open(input_file) as hdul:
@@ -206,12 +208,18 @@ def run_photometry(
         except NoFileFoundError:
             logging.error("No dark file found.")
             return
+        except ValueError:
+            logging.error("Error with finding minimum value.")
+            return
     if flat is None:
         try:
             flat = find_flat(input_file)
             logging.info("Closest flat file is %s", flat)
         except NoFileFoundError:
             logging.error("No flat file found.")
+            return
+        except ValueError:
+            logging.error("Error with finding minimum value.")
             return
 
     if not find_in_csv(index_file, input_file, "WCS"):
@@ -259,7 +267,7 @@ def find_in_csv(index_file: str, path: str, column: str, cell_value=None):
     """Find a file from it's path in a csv, make a change to it and return dataframe or don't make a change and return value at collumn."""
     df = pd.read_csv(index_file, index_col=0)
     for i in range(df["FILEPATH"].size):
-        if os.path.abspath(path) == os.path.abspath(f'./{df["FILEPATH"][i]}'):
+        if os.path.abspath(path) == os.path.abspath(f'{df["FILEPATH"][i]}'):
             if cell_value is None:
                 return df[column][i]
             else:

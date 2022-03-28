@@ -13,6 +13,7 @@ logging.basicConfig(
 )
 
 OUTPUT_LOCATION = "./Output/"
+STAR_DIR = "/datadrive/gbo/rawdata/shaw_ip_monitoring/"
 sources = pd.read_csv("./Stars_List.csv")
 sources = sources.to_dict("list")
 stars = sources["Source_name"]
@@ -21,16 +22,16 @@ dec_list = sources["Dec"]
 
 if __name__ == "__main__":
     for i in range(len(stars)):
-        if not os.path.isdir(f"./{stars[i]}/"):
+        if not os.path.isdir(f"{STAR_DIR}{stars[i]}/"):
             logging.error("./%s/ does not exist, skipping star observations.", stars[i])
             continue
-        if not photo.is_non_zero_file(f"./{stars[i]}/index.csv"):
-            photo.index_dir(stars[i])
+        if not photo.is_non_zero_file(f"{STAR_DIR}{stars[i]}/index.csv"):
+            photo.index_dir(f"{STAR_DIR}{stars[i]}/", clean_run=True)
 
-        data = pd.read_csv(f"./{stars[i]}/index.csv")
+        data = pd.read_csv(f"{STAR_DIR}{stars[i]}/index.csv")
         logging.info("Performing photometry on new data points for %s...\n", stars[i])
         for j in range(data["RAN"].size):
-            if not data["RAN"][j]:
+            if not data["RAN"][j] and data["WCS"][j]:
                 logging.info("Performing photometry on %s...", data["FILEPATH"][j])
                 photo.run_photometry(
                     ra_list[i], dec_list[i], data["FILEPATH"][j], save=True
