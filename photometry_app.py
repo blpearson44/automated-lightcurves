@@ -25,7 +25,7 @@ class NoFileFoundError(Exception):
 
 CALIBRATION_PATH = "/datadrive/gbo/rawdata/calibrations/"
 DEFAULT_DARK = CALIBRATION_PATH + "Dark/"
-DEFAULT_FLAT = CALIBRATION_PATH + "Light/"
+DEFAULT_FLAT = CALIBRATION_PATH + "Flat/"
 OUTPUT_DIR = "./Output/"
 
 # grab API key from ./token.txt
