@@ -19,20 +19,26 @@ import photometryplus.photometry as pho
 warnings.filterwarnings("ignore", category=FITSFixedWarning, append=True)
 
 
-pho.changeSettings(
-    useBiasFlag=0,
-    consolePrintFlag=0,
-    astrometryDotNetFlag="flyzmcwhrujaqwai",
-    astrometryTimeOutFlag=100,
-)
-
-
 class NoFileFoundError(Exception):
     """Throw this error when a file cannot be found."""
 
 
 CALIBRATION_PATH = "/datadrive/gbo/rawdata/calibrations/"
+DEFAULT_DARK = CALIBRATION_PATH + "Dark/"
+DEFAULT_FLAT = CALIBRATION_PATH + "Light/"
 OUTPUT_DIR = "./Output/"
+
+# grab API key from ./token.txt
+token_file = os.path.join("./", "token.txt")
+with open(token_file, "r") as f:
+    API_KEY = f.read().replace("\n", "")
+
+pho.changeSettings(
+    useBiasFlag=0,
+    consolePrintFlag=0,
+    astrometryDotNetFlag=API_KEY,
+    astrometryTimeOutFlag=100,
+)
 
 app = typer.Typer()
 
@@ -61,7 +67,7 @@ def find_dark(input_file: str) -> str:
         └──flats/
             └──flats fits data
     """
-    path = CALIBRATION_PATH + "Dark/"  # default path
+    path = DEFAULT_DARK
     try:
         df = pd.read_csv(path + "index.csv")
     except FileNotFoundError:
@@ -76,7 +82,7 @@ def find_dark(input_file: str) -> str:
         if not math.isclose(input_exposure, df["EXPOSURE"][i], rel_tol=0.05):
             df = df.drop(i)
 
-    index_data = df.to_dict('list')
+    index_data = df.to_dict("list")
     return index_data["FILEPATH"][closest(input_date, index_data["MJD"])]
 
 
@@ -94,7 +100,7 @@ def find_flat(input_file: str) -> str:
         └──flats/
             └──flats fits data
     """
-    path = CALIBRATION_PATH + "Flat/"  # default path
+    path = DEFAULT_FLAT
     try:
         df = pd.read_csv(path + "index.csv")
     except FileNotFoundError:
@@ -109,7 +115,7 @@ def find_flat(input_file: str) -> str:
         if df["FILTER"][i] != input_filter:
             df = df.drop(i)
 
-    index_data = df.to_dict('list')
+    index_data = df.to_dict("list")
     return index_data["FILEPATH"][closest(input_date, index_data["MJD"])]
 
 
@@ -229,12 +235,13 @@ def run_photometry(
         )
     try:
         output = pho.runPhotometry(star_ra, star_dec, input_file, dark, "", flat)
-        date_taken = ""
         with fits.open(input_file) as hdul:
             date_taken = hdul[0].header["JD"]
+            object_name = hdul[0].header["OBJECT"]
+
         pho.printReferenceToFile(
             output.referenceStars,
-            "./reference-stars/" + str(round(date_taken)) + ".csv",
+            "./reference-stars/" + object_name + str(round(date_taken)) + ".csv",
         )
     except AttributeError:
         logging.error(

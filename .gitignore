@@ -9,3 +9,4 @@ RX_J2133.7+5107 (V)/
 /flycheck_main.py
 /__pycache__/
 /logs/
+/token.txt
