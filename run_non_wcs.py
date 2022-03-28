@@ -5,6 +5,7 @@ import os
 import logging
 import pandas as pd
 import photometry_app as photo
+from astropy.wcs.wcs import NoConvergence
 
 logging.basicConfig(
     format="%(levelname)s: %(asctime)s %(message)s",
@@ -33,10 +34,16 @@ if __name__ == "__main__":
         for j in range(data["RAN"].size):
             if not data["RAN"][j]:
                 logging.info("Performing photometry on %s...", data["FILEPATH"][j])
-                photo.run_photometry(
-                    ra_list[i], dec_list[i], data["FILEPATH"][j], save=True
-                )
-                logging.info("Finished photometry for %s!\n", data["FILEPATH"][j])
+                try:
+                    photo.run_photometry(
+                        ra_list[i], dec_list[i], data["FILEPATH"][j], save=True
+                    )
+                except NoConvergence:
+                    logging.error("Convergence issue with astropy.")
+                except:
+                    logging.error("Encountered an unknown error.")
+                else:
+                    logging.info("Finished photometry for %s!\n", data["FILEPATH"][j])
 
         logging.info(
             "Finished updating photometry for %s, generating light curves...", stars[i]
