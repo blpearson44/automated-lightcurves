@@ -2,6 +2,7 @@
 """Primary script to check over data for updates."""
 
 import os
+import shutil
 import logging
 import pandas as pd
 import photometry_app as photo
@@ -22,13 +23,14 @@ dec_list = sources["Dec"]
 
 if __name__ == "__main__":
     for i in range(len(stars)):
-        if not os.path.isdir(f"{STAR_DIR}{stars[i]}/"):
+        object_dir = f"{STAR_DIR}{stars[i]}"
+        if not os.path.isdir(f"{object_dir}/"):
             logging.error("./%s/ does not exist, skipping star observations.", stars[i])
             continue
-        if not photo.is_non_zero_file(f"{STAR_DIR}{stars[i]}/index.csv"):
-            photo.index_dir(f"{STAR_DIR}{stars[i]}/", clean_run=True)
+        if not photo.is_non_zero_file(f"{object_dir}/index.csv"):
+            photo.index_dir(f"{object_dir}/", clean_run=True)
 
-        data = pd.read_csv(f"{STAR_DIR}{stars[i]}/index.csv")
+        data = pd.read_csv(f"{object_dir}/index.csv")
         logging.info("Performing photometry on new data points for %s...\n", stars[i])
         for j in range(data["RAN"].size):
             if not data["RAN"][j] and data["WCS"][j]:
@@ -40,6 +42,9 @@ if __name__ == "__main__":
 
         logging.info(
             "Finished updating photometry for %s, generating light curves...", stars[i]
+        )
+        shutil.copyfile(
+            f"{object_dir}/index.csv", f"./Output/indexes/{stars[i]}_index.csv"
         )
         photo.plot_lightcurve(
             f"./{OUTPUT_LOCATION}/{stars[i]}.csv", title=f"{stars[i]} Lightcurve"
