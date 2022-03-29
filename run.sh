@@ -7,3 +7,4 @@ touch $log
 cp -r ./Output/logs/ $dropbox/logs/
 cp ./Output/*.csv $dropbox/data/
 cp ./Output/*.png $dropbox/plots/
+cp -r ./Output/indexes/ $dropbox/indexes/
