@@ -1,8 +1,9 @@
 #!/usr/bin/bash
 now=$(date +"%y-%m-%d")
 log="./Output/logs/log_$now.txt"
+dropbox="/home/bpearson/Dropbox/IP-monitoring-output/"
 touch $log
 /opt/local/anaconda3/bin/python ./run_wcs.py &>> $log
-cp -r ./Output/logs/ ./Dropbox/logs/
-cp ./Output/*.csv ./Dropbox/
-cp ./Output/*.png ./Dropbox/
+cp -r ./Output/logs/ $dropbox/logs/
+cp ./Output/*.csv $dropbox/data/
+cp ./Output/*.png $dropbox/plots/
