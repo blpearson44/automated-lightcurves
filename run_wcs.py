@@ -20,9 +20,11 @@ sources = sources.to_dict("list")
 stars = sources["Source_name"]
 ra_list = sources["RA"]
 dec_list = sources["Dec"]
+radius_list = sources["Radius"]
 
 if __name__ == "__main__":
     for i in range(len(stars)):
+        photo.pho.changeSettings(fwhmFlag=radius_list[i])
         object_dir = f"{STAR_DIR}{stars[i]}"
         if not os.path.isdir(f"{object_dir}/"):
             logging.error("./%s/ does not exist, skipping star observations.", stars[i])
