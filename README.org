@@ -21,19 +21,13 @@ git clone --recurse-submodules https://github.com/blpearson44/senior-thesis.git
 * Usage
 This script is a wrapper around photometryplus to gather magnitude data on a target star. From the command line, for a description of all the commands, run
 #+begin_src bash
-path/to/python path/to/dir/main.py --help
+path/to/python path/to/dir/photometry_app.py --help
 #+end_src
 Each command has flags that can be set, check them with
 #+begin_src bash
-path/to/python path/to/dir/main.py command --help
+path/to/python path/to/dir/photometry_app.py command --help
 #+end_src
-* Photometry script
-This project will consist of two Python scripts:
-** TODO Photometry Script [2/3]
-- [ ] Check for new data
-- [X] Perform photometry on a set of input stars
-- [X] Append to data set
-** TODO Plotting Script [2/3]
-- [X] Plot data set
-- [X] Overwrite previous file at destination
-- [ ] Generate notification
+** Run over bulk data
+Though the application comes with a built in bulk run, depending on the use case it may make more sense to use a separate run script.
+~run.sh~ and ~photometry_app.py~ should be modified to have accurate filepaths (for logging and calibration) and then Stars_List.csv should be modified to the stars being observed. Note that the name of the star is how the program finds the directory (located in ~run_wcs.py~) for the star.
+If running over data that does not have WCS data (this can generally be checked through the FITS header) then use ~run_non_wcs.sh~ and update ~run_non_wcs.py~. In this case, ensure that ~./token.txt~ exists and contains your API key from Astrometry. Note that data without WCS may be lower in quality, and this may cause the program to fail even if it does successfully get the WCS from Astrometry.net.
