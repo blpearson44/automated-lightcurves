@@ -29,6 +29,8 @@ if __name__ == "__main__":
             continue
         if not photo.is_non_zero_file(f"{object_dir}/index.csv"):
             photo.index_dir(f"{object_dir}/", clean_run=True)
+        else:
+            photo.index_dir(f"{object_dir}/", clean_run=False)
 
         data = pd.read_csv(f"{object_dir}/index.csv")
         logging.info("Performing photometry on new data points for %s...\n", stars[i])
