@@ -27,6 +27,8 @@ Each command has flags that can be set, check them with
 #+begin_src bash
 path/to/python path/to/dir/photometry_app.py command --help
 #+end_src
+
+For a more detailed description of how to use this application, see section 4.4 of the senior thesis paper included in this repository.
 ** Run over bulk data
 Though the application comes with a built in bulk run, depending on the use case it may make more sense to use a separate run script.
 ~run.sh~ and ~photometry_app.py~ should be modified to have accurate filepaths (for logging and calibration) and then Stars_List.csv should be modified to the stars being observed. Note that the name of the star is how the program finds the directory (located in ~run_wcs.py~) for the star.
