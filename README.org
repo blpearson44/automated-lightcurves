@@ -16,7 +16,7 @@ pip install numpy matplotlib astropy photutils django statistics
 #+end_src
 ** Primary files
 #+begin_src bash
-git clone --recurse-submodules https://github.com/blpearson44/senior-thesis.git
+git clone --recurse-submodules https://github.com/blpearson44/automated-lightcurves.git
 #+end_src
 * Usage
 This script is a wrapper around photometryplus to gather magnitude data on a target star. From the command line, for a description of all the commands, run
